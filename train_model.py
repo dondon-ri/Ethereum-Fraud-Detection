@@ -7,7 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 
-#LOAD AND CLEAN DATA
+#LOAD AND CLEAN DATA(dropping data that are not needed like wallet address,index)
 df = pd.read_csv('transaction_dataset.csv')
 to_drop = ['Unnamed: 0', 'Index', 'Address', ' ERC20 most sent token type', ' ERC20_most_rec_token_type']
 df_clean = df.drop(columns=to_drop).fillna(0)
@@ -19,10 +19,10 @@ df_clean = df_clean.drop(columns=single_val_cols)
 X = df_clean.drop('FLAG', axis=1)
 y = df_clean['FLAG']
 
-# SPLIT AND SCALE
+# SPLIT AND SCALE (80% data for train and 20% for testing)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# Scaler for Logistic Regression (Math-based models need this)
+# Scaler for Logistic Regression 
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
@@ -62,7 +62,7 @@ for name, model in models.items():
         "Accuracy": round(report['accuracy'], 4)
     })
 
-    # C. Save Confusion Matrix for the combined plot
+    #Save Confusion Matrix for the combined plot
     cms.append((name, confusion_matrix(y_test, y_pred)))
 
 #PRINT AND SAVE COMPARISON RESULTS
@@ -81,7 +81,7 @@ for i, (name, cm) in enumerate(cms):
     axes[i].set_xlabel('Predicted')
     axes[i].set_ylabel('Actual')
 
-    #Adding explanatory notes at the bottom ---
+    #Adding explanation notes at the bottom
     fig.text(0.5, 0.02,
              "Note: 0 = Normal Transaction | 1 = Fraud Case\n"
              "Top-Left: Correctly flagged Normal | Top-Right: False Alarms (Innocent flagged) \n"
