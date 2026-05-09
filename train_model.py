@@ -34,6 +34,39 @@ models = {
     "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42)
 }
 
+# Define our feature sets based on Importance
+top_3 = ['Time Diff between first and last (Mins)', 'avg val received', 'total transactions (including tnx to create contract)']
+top_5 = top_3 + ['Unique Received From Addresses', 'total Ether sent']
+top_15 = feature_importance_df['Feature'].head(15).tolist()
+all_features = X.columns.tolist()
+
+feature_experiments = {
+    "3 Features": top_3,
+    "5 Features": top_5,
+    "15 Features": top_15,
+    "All Features": all_features
+}
+
+# The Experiment Loop
+experiment_results = []
+
+for name, cols in feature_experiments.items():
+    # Select only the specific columns
+    X_train_sub = X_train[cols]
+    X_test_sub = X_test[cols]
+    
+    # Train Random Forest
+    rf = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    rf.fit(X_train_sub, y_train)
+    
+    # Evaluate
+    score = f1_score(y_test, rf.predict(X_test_sub))
+    experiment_results.append({"Experiment": name, "F1-Score": score})
+
+# Final Comparison Table
+comparison_df = pd.DataFrame(experiment_results)
+print(comparison_df)
+
 # TRAIN AND COLLECT DATA
 results_list = []
 cms = []  # To store confusion matrices for the combined plot
