@@ -4,117 +4,72 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier, IsolationForest
+from xgboost import XGBClassifier
+from sklearn.metrics import f1_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score
 
-#LOAD AND CLEAN DATA(dropping data that are not needed like wallet address,index)
+# DATA PREPARATION
 df = pd.read_csv('transaction_dataset.csv')
 to_drop = ['Unnamed: 0', 'Index', 'Address', ' ERC20 most sent token type', ' ERC20_most_rec_token_type']
 df_clean = df.drop(columns=to_drop).fillna(0)
 
-# Remove columns with only one value
+# Drop zero-variance columns
 single_val_cols = [col for col in df_clean.columns if df_clean[col].nunique() <= 1]
 df_clean = df_clean.drop(columns=single_val_cols)
 
 X = df_clean.drop('FLAG', axis=1)
 y = df_clean['FLAG']
 
-# SPLIT AND SCALE (80% data for train and 20% for testing)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# Scaler for Logistic Regression 
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# DEFINE MODELS
+#4 models
 models = {
     "Logistic Regression": LogisticRegression(max_iter=1000, class_weight='balanced'),
     "Random Forest": RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42),
-    "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42)
+    "XGBoost": XGBClassifier(eval_metric='logloss', random_state=42),
+    "Isolation Forest": IsolationForest(contamination=0.1, random_state=42)
 }
 
-# Define our feature sets based on Importance
-top_3 = ['Time Diff between first and last (Mins)', 'avg val received', 'total transactions (including tnx to create contract)']
-top_5 = top_3 + ['Unique Received From Addresses', 'total Ether sent']
-top_15 = feature_importance_df['Feature'].head(15).tolist()
-all_features = X.columns.tolist()
+# Storage for results
+model_performance = []
+cms = []
 
-feature_experiments = {
-    "3 Features": top_3,
-    "5 Features": top_5,
-    "15 Features": top_15,
-    "All Features": all_features
-}
+fig, axes = plt.subplots(1, 4, figsize=(24, 5))  # Create space for 4 confusion matrices
 
-# The Experiment Loop
-experiment_results = []
-
-for name, cols in feature_experiments.items():
-    # Select only the specific columns
-    X_train_sub = X_train[cols]
-    X_test_sub = X_test[cols]
-    
-    # Train Random Forest
-    rf = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
-    rf.fit(X_train_sub, y_train)
-    
-    # Evaluate
-    score = f1_score(y_test, rf.predict(X_test_sub))
-    experiment_results.append({"Experiment": name, "F1-Score": score})
-
-# Final Comparison Table
-comparison_df = pd.DataFrame(experiment_results)
-print(comparison_df)
-
-# TRAIN AND COLLECT DATA
-results_list = []
-cms = []  # To store confusion matrices for the combined plot
-
-for name, model in models.items():
-    print(f"\n--- Training {name} ---")
-
-    if name == "Logistic Regression":
+for i, (name, model) in enumerate(models.items()):
+    if name == "Isolation Forest":
+        model.fit(X_train)
+        y_pred = [1 if p == -1 else 0 for p in model.predict(X_test)]
+    elif name == "Logistic Regression":
         model.fit(X_train_scaled, y_train)
         y_pred = model.predict(X_test_scaled)
     else:
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
-    #Print the detailed report for model
-    print(f"Detailed Classification Report for {name}:")
-    print(classification_report(y_test, y_pred))
-
-    #Save Metrics for the final comparison table
+    # Detailed Reports
     report = classification_report(y_test, y_pred, output_dict=True)
-    results_list.append({
+    model_performance.append({
         "Model": name,
-        "Precision": round(report['1']['precision'], 4),
-        "Recall": round(report['1']['recall'], 4),
-        "F1-Score": round(report['1']['f1-score'], 4),
+        "F1-Score": report['1']['f1-score'],
+        "Precision": report['1']['precision'],
+        "Recall": report['1']['recall'],
         "Accuracy": round(report['accuracy'], 4)
     })
 
-    #Save Confusion Matrix for the combined plot
-    cms.append((name, confusion_matrix(y_test, y_pred)))
+    # Confusion Matrix Visualization
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[i])
+    axes[i].set_title(f"{name}\nConfusion Matrix")
+    axes[i].set_xlabel("Predicted")
+    axes[i].set_ylabel("Actual")
 
-#PRINT AND SAVE COMPARISON RESULTS
-comparison_df = pd.DataFrame(results_list)
-print("\n" + "="*30)
-print("FINAL MODEL COMPARISON TABLE")
-print("="*30)
-print(comparison_df)
-comparison_df.to_csv('model_comparison_results.csv', index=False)
-
-#SHOW COMBINED CONFUSION MATRICES (Side-by-Side)
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-for i, (name, cm) in enumerate(cms):
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[i], cbar=False)
-    axes[i].set_title(f'Confusion Matrix:\n{name}')
-    axes[i].set_xlabel('Predicted')
-    axes[i].set_ylabel('Actual')
-
-    #Adding explanation notes at the bottom
+ #Adding explanation notes at the bottom
     fig.text(0.5, 0.02,
              "Note: 0 = Normal Transaction | 1 = Fraud Case\n"
              "Top-Left: Correctly flagged Normal | Top-Right: False Alarms (Innocent flagged) \n"
@@ -122,22 +77,102 @@ for i, (name, cm) in enumerate(cms):
              ha='center', fontsize=12, bbox=dict(facecolor='white', alpha=0.5, edgecolor='black'))
 
 plt.subplots_adjust(bottom=0.2)
-plt.show()
-
-#PERFORMANCE COMPARISON CHART
-comparison_df.set_index('Model')[['Precision', 'Recall', 'F1-Score']].plot(kind='bar', figsize=(10, 6))
-plt.title('Model Performance Comparison (Class 1: Fraud)')
-plt.ylabel('Score')
-plt.xticks(rotation=0)
-plt.legend(loc='lower right')
 plt.tight_layout()
 plt.show()
 
-#FEATURE IMPORTANCE (for Random Forest)
-importances = pd.Series(models['Random Forest'].feature_importances_, index=X.columns)
-plt.figure(figsize=(10, 6))
-importances.nlargest(10).plot(kind='barh', color='teal')
-plt.title('Top 10 Most Important Features (Random Forest)')
-plt.xlabel('Importance Score')
-plt.tight_layout()
-plt.show()
+#features testing
+
+all_cols = X_train.columns.tolist()
+
+# Helper to find exact column names (handle some hidden spaces in column title)
+def get_col(keyword):
+    match = [c for c in all_cols if keyword.lower() in c.lower()]
+    return match[0] if match else None
+
+
+# Manual selection based on high correlation with FLAG from heatmap
+try:
+    # Top 3: (0.26, 0.11, 0.10)
+    top_3 = [
+        get_col('Time Diff between first and last'),
+        get_col('Avg min between received tnx'),
+        get_col('total transactions (including tnx')
+    ]
+
+    # (0.079, 0.078)
+    top_5 = top_3 + [
+        get_col('Received Tnx'),
+        get_col('Sent tnx')
+    ]
+
+    #the rest top features
+    top_15 = top_5 + [
+        get_col('avg val sent'),
+        get_col('ERC20 uniq rec token name'),
+        get_col('ERC20 uniq rec contract addr'),
+        get_col('Unique Sent To Addresses'),
+        get_col('Total ERC20 tnxs'),
+        get_col('Unique Received From Addresses'),
+        get_col('Avg min between sent tnx'),
+        get_col('ERC20 uniq rec addr'),
+        get_col('ERC20 uniq sent token name'),
+        get_col('ERC20 uniq sent addr')
+    ]
+
+    # CLEANUP: Remove any None values and duplicates
+    top_3 = list(dict.fromkeys([c for c in top_3 if c]))
+    top_5 = list(dict.fromkeys([c for c in top_5 if c]))
+    top_15 = list(dict.fromkeys([c for c in top_15 if c]))
+
+except Exception as e:
+    print(f"Mapping error: {e}")
+    top_3, top_5, top_15 = all_cols[:3], all_cols[:5], all_cols[:15]
+
+#defining top15 feature set
+feature_sets = {
+    "Top 3 Features": top_3,
+    "Top 5 Features": top_5,
+    "Top 15 Features": top_15,
+    "All Features": all_cols
+}
+
+#experiment the models with selected category features
+exp_results = []
+for label, cols in feature_sets.items():
+    # 1. Train XGBoost
+    xgb_exp = XGBClassifier(eval_metric='logloss', random_state=42)
+    xgb_exp.fit(X_train[cols], y_train)
+    y_pred_xgb = xgb_exp.predict(X_test[cols])
+
+    # 2. Train Random Forest
+    rf_exp = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    rf_exp.fit(X_train[cols], y_train)
+    y_pred_rf = rf_exp.predict(X_test[cols])
+
+    # Calculate metrics for both
+    exp_results.append({
+        "Set": label,
+        "Model": "XGBoost",
+        "F1-Score": round(f1_score(y_test, y_pred_xgb), 4),
+        "Accuracy": round(accuracy_score(y_test, y_pred_xgb), 4)
+    })
+
+    exp_results.append({
+        "Set": label,
+        "Model": "Random Forest",
+        "F1-Score": round(f1_score(y_test, y_pred_rf), 4),
+        "Accuracy": round(accuracy_score(y_test, y_pred_rf), 4)
+    })
+
+# Convert to DataFrame for a clean printout
+df_exp = pd.DataFrame(exp_results)
+
+# --- FINAL SUMMARY REPORT ---
+print("\n----4-models performance comparison----")
+print(pd.DataFrame(model_performance))
+
+print("\n----XGB & RF performance based on features 3,5,15,all----")
+print(df_exp.to_string(index=False))
+
+
+
