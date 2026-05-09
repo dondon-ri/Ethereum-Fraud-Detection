@@ -7,7 +7,7 @@ https://www.kaggle.com/datasets/vagifa/ethereum-frauddetection-dataset
 
 ## Model Performance Summary
 
-We evaluated three different algorithms to find the best balance between security and user experience.
+We evaluated four different algorithms to find the best balance between security and user experience.
 
 | Model                   | Precision | Recall | F1-Score | Accuracy |
 | :---------------------- | :-------- | :----- | :------- | :------- |
