@@ -11,14 +11,11 @@ We evaluated three different algorithms to find the best balance between securit
 
 | Model                   | Precision | Recall | F1-Score | Accuracy |
 | :---------------------- | :-------- | :----- | :------- | :------- |
-| **Gradient Boosting**   | 0.9688    | 0.8532 | 0.9073   | 0.9614   |
-| **Random Forest**       | 0.9761    | 0.8417 | 0.9039   | 0.9604   |
 | **Logistic Regression** | 0.3488    | 0.8601 | 0.4964   | 0.6135   |
+| **Random Forest**       | 0.9761    | 0.8417 | 0.9039   | 0.9604   |
+| **XGBoost**             | 0.9847    | 0.8876 | 0.9336   | 0.9721   |
+| **Isolation Forest**    | 0.0733    | 0.0321 | 0.0447   | 0.6958   |
 
-## Key Fraud Indicators
+## Testing Top2 models with selected features sets
 
-Our model identified the following "Top 3" patterns that most commonly indicate fraudulent behavior:
-
-1. **Account Lifespan (Time Diff):** Malicious "burner" accounts typically have a very short lifespan between their first and last transactions.
-2. **Total Ether Received:** Fraudulent wallets often show massive, sudden spikes in incoming volume that deviate from normal user patterns.
-3. **Average Receipt Value:** High-value, singular transfers are more characteristic of theft payouts than the varied, smaller transactions of regular users.
+Based on the performance comparison of 4 models, we choose the Top2 performaner that is XGBoost and Random Forest. After that we train each model with selected features category like Top3,5,15 and all features to see will the model perform with just a set of selected features and to test if other features are just data nosie. We choose the features from correlation heapmap.
