@@ -2,15 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('transaction_dataset.csv')
-
-# Drop non-numeric and unhelpful columns
-to_drop = ['Unnamed: 0', 'Index', 'Address', ' ERC20 most sent token type', ' ERC20_most_rec_token_type']
-df_clean = df.drop(columns=to_drop).fillna(0)
-
-# Drop columns with zero variance
-single_val_cols = [col for col in df_clean.columns if df_clean[col].nunique() <= 1]
-df_clean = df_clean.drop(columns=single_val_cols)
+df_clean = pd.read_csv('cleaned_ethereum_data.csv')
 
 # Calculate the correlation matrix
 corr_matrix = df_clean.corr()
