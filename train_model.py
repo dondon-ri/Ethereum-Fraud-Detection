@@ -9,17 +9,10 @@ from xgboost import XGBClassifier
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 from sklearn.metrics import accuracy_score
 
-# DATA PREPARATION
-df = pd.read_csv('transaction_dataset.csv')
-to_drop = ['Unnamed: 0', 'Index', 'Address', ' ERC20 most sent token type', ' ERC20_most_rec_token_type']
-df_clean = df.drop(columns=to_drop).fillna(0)
 
-# Drop zero-variance columns
-single_val_cols = [col for col in df_clean.columns if df_clean[col].nunique() <= 1]
-df_clean = df_clean.drop(columns=single_val_cols)
-
-X = df_clean.drop('FLAG', axis=1)
-y = df_clean['FLAG']
+df = pd.read_csv('cleaned_ethereum_data.csv')
+X = df.drop('FLAG', axis=1)
+y = df['FLAG']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
@@ -45,6 +38,7 @@ for i, (name, model) in enumerate(models.items()):
     if name == "Isolation Forest":
         model.fit(X_train)
         y_pred = [1 if p == -1 else 0 for p in model.predict(X_test)]
+        if_scores = model.decision_function(X_test_scaled)
     elif name == "Logistic Regression":
         model.fit(X_train_scaled, y_train)
         y_pred = model.predict(X_test_scaled)
@@ -174,5 +168,17 @@ print(pd.DataFrame(model_performance))
 print("\n----XGB & RF performance based on features 3,5,15,all----")
 print(df_exp.to_string(index=False))
 
+#Annomly score for isolation forest
+plt.figure(figsize=(12, 6))
 
+sns.histplot(if_scores[y_test == 0], color='blue', label='Actual Normal', kde=True, element="step")
+sns.histplot(if_scores[y_test == 1], color='red', label='Actual Fraud', kde=True, element="step")
+
+plt.title("Isolation Forest: Identifying Unseen Fraud Patterns", fontsize=15)
+plt.xlabel("Anomaly Score (Lower/Left = More 'Weird' or Suspicious)", fontsize=12)
+plt.ylabel("Number of Transactions")
+plt.legend()
+
+plt.savefig('isolation_forest_analysis.png', dpi=300)
+plt.show()
 

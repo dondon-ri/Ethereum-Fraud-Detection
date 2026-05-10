@@ -30,3 +30,8 @@ eth_final = pd.DataFrame(X_scaled,columns=X.columns)
 df['Flag'] = y.values
 print("Data Scaling finished. Ready for modeling!")
 print(eth_final.head())
+
+#to save as cleaned_data
+final_df = eth_final.copy()
+final_df['FLAG'] = y.values
+final_df.to_csv("cleaned_ethereum_data.csv", index=False)
