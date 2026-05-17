@@ -132,19 +132,33 @@ if len(features_to_drop) > 0:
     X_train_broken = X_train.drop(columns=features_to_drop)
     X_test_broken = X_test.drop(columns=features_to_drop)
 
-    # Train the experimental model
+    # --- TEST 1: Experimental XGBoost ---
     xgb_experimental = XGBClassifier(eval_metric='logloss', random_state=42)
     xgb_experimental.fit(X_train_broken, y_train)
+    y_pred_xgb_broken = xgb_experimental.predict(X_test_broken)
+    broken_f1_xgb = f1_score(y_test, y_pred_xgb_broken)
+
+    # --- TEST 2: Experimental Random Forest ---
+    rf_experimental = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    rf_experimental.fit(X_train_broken, y_train)
+    y_pred_rf_broken = rf_experimental.predict(X_test_broken)
+    broken_f1_rf = f1_score(y_test, y_pred_rf_broken)
 
     # Calculate performance drop
-    y_pred_broken = xgb_experimental.predict(X_test_broken)
-    broken_f1 = f1_score(y_test, y_pred_broken)
-
-    print("=" * 50)
+    # 4. Print Side-by-Side Experimental Results
+    print("\n" + "=" * 55)
+    print("             ABLATION STUDY FINAL RESULTS             ")
+    print("=" * 55)
     print(f"Original XGBoost F1-Score: 0.9504")
-    print(f"Experimental F1-Score WITHOUT these features: {broken_f1:.4f}")
-    print(f"Performance Drop: {0.9504 - broken_f1:.4f}")
-    print("=" * 50)
+    print(f"🔹 XGBoost F1-Score WITHOUT key features:      {broken_f1_xgb:.4f}")
+    print(f"Performance Drop: {0.9504 - broken_f1_xgb:.4f}")
+    print(f"Original RandomForest F1-Score: 0.9288")
+    print(f"🔹 Random Forest F1-Score WITHOUT key features: {broken_f1_rf:.4f}")
+    print(f"Performance Drop: {0.9288 - broken_f1_rf:.4f}")
+    print("=" * 55)
 else:
-    print("\nExperiment aborted: Zero matching features were located.")
+    print("\n❌ Experiment aborted: Zero matching features were located.")
     print("=" * 50)
+
+
+
