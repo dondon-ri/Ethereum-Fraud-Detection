@@ -8,6 +8,7 @@ from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from xgboost import XGBClassifier
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 from sklearn.metrics import accuracy_score
+import joblib
 
 
 df = pd.read_csv('cleaned_ethereum_data.csv')
@@ -188,3 +189,10 @@ plt.legend()
 plt.savefig('isolation_forest_analysis.png', dpi=300)
 plt.show()
 
+
+
+#to connect with streamlit
+joblib.dump(xgb_exp, 'ethereum_fraud_model.pkl')
+joblib.dump(scaler, 'scaler.pkl')
+
+print("Model and Scaler saved for Streamlit!")
